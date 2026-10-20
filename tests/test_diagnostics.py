@@ -10,6 +10,7 @@ from core.analyzer import build_verdict
 from core.checker import NetworkChecker
 from core.models import CheckReport, Outcome, ProbeOptions, TcpAttempt, TlsAttempt, VerdictKind
 from cli.app import build_parser, load_domains, run_cli
+from main import _configure_windows_output
 
 
 def tcp(ip="1.1.1.1", port=443, ok=False, error="timeout"):
@@ -118,6 +119,15 @@ class CheckerTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    def test_windows_redirected_help_uses_utf8(self):
+        buffer = io.BytesIO()
+        stream = io.TextIOWrapper(buffer, encoding="cp1252")
+        with patch("sys.platform", "win32"), patch("sys.stdout", stream):
+            _configure_windows_output()
+            build_parser().print_help()
+            stream.flush()
+        self.assertIn("Диагностика", buffer.getvalue().decode("utf-8"))
+
     def test_domain_file_comments_and_duplicates(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "domains.txt"
