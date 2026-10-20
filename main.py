@@ -5,6 +5,15 @@ from __future__ import annotations
 import sys
 
 
+def _configure_windows_output() -> None:
+    """Keep Russian help/errors readable when Windows redirects output to a pipe."""
+    if sys.platform == "win32":
+        for stream in (sys.stdout, sys.stderr):
+            configure = getattr(stream, "reconfigure", None)
+            if configure is not None:
+                configure(encoding="utf-8", errors="replace")
+
+
 def _dependency_error(package: str) -> int:
     """Show an actionable startup error without exposing an import traceback."""
     print(
@@ -16,6 +25,7 @@ def _dependency_error(package: str) -> int:
 
 
 def main() -> int:
+    _configure_windows_output()
     if len(sys.argv) == 1:
         try:
             from gui.app import run_gui
