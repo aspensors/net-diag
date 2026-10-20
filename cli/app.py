@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 
 from rich.console import Console
@@ -45,12 +46,13 @@ def run_cli(args: argparse.Namespace) -> int:
     if not domains:
         console.print("[yellow]Укажите домен или --file. Для графического режима используйте --gui.[/]")
         return 2
-    if args.timeout <= 0:
-        console.print("[red]Таймаут должен быть больше нуля.[/]")
+    if not math.isfinite(args.timeout) or args.timeout <= 0:
+        console.print("[red]Таймаут должен быть конечным числом больше нуля.[/]")
         return 2
 
     checker = NetworkChecker(ProbeOptions(timeout_seconds=args.timeout, test_port_80=args.port_80))
     reports: list[CheckReport] = []
+    failures = 0
     for domain in domains:
         console.rule(f"[bold cyan]{domain}")
         try:
@@ -58,8 +60,10 @@ def run_cli(args: argparse.Namespace) -> int:
             reports.append(report)
             _print_report(console, report)
         except ValueError as exc:
+            failures += 1
             console.print(f"[red]Некорректный домен:[/] {exc}")
         except Exception as exc:  # defensive boundary: a CLI must not print a traceback for a probe failure
+            failures += 1
             console.print(f"[red]Неожиданная ошибка диагностики {domain}:[/] {str(exc)[:240] or type(exc).__name__}")
     if args.json:
         try:
@@ -68,7 +72,7 @@ def run_cli(args: argparse.Namespace) -> int:
         except OSError as exc:
             console.print(f"[red]Не удалось сохранить отчёт:[/] {exc}")
             return 1
-    return 0 if reports else 2
+    return (1 if failures else 0) if reports else 2
 
 
 def _print_stage(console: Console, stage: StageResult) -> None:
