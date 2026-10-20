@@ -30,6 +30,7 @@ class ProbeOptions:
     test_port_80: bool = False
     max_ips: int = 4
     user_agent: str = "net-diag/1.0 (+diagnostic)"
+    deadline_seconds: float = 30.0
 
 
 @dataclass(slots=True)
@@ -87,6 +88,7 @@ class CheckReport:
     http_suspected_hijack: bool = False
     http_error: str | None = None
     verdict: Verdict | None = None
+    timed_out: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serialisable representation suitable for an audit report."""
