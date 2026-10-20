@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-- Add 24 offline tests and CI for Python 3.10–3.14 on Linux, plus Python 3.12 on Windows.
+- Add a 30-second per-domain deadline shared by CLI and GUI; CLI can override it with --deadline.
+- Run network probes in a disposable spawned process so blocking OS DNS calls and HTTP reads can be stopped.
+- Preserve completed-stage snapshots on timeout, mark JSON with timed_out=true, force an Inconclusive verdict and exit CLI with code 1. Always clean up worker processes and pipe-reader threads.
+- Add 33 offline tests and CI for Python 3.10–3.14 on Linux, plus Python 3.12 on Windows.
 - Require actual TCP/443 attempts before reporting TCP drop; a port-80-only report is inconclusive.
 - Require failed TLS observations for every system-resolved address before classifying a DNS/TLS discrepancy. An untested address is not a failure.
 - Compare SNI and no-SNI controls on the same IP. Successful application evidence takes priority over TCP/SNI failure samples.
