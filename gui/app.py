@@ -10,7 +10,7 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from core.checker import NetworkChecker
+from core.runner import DiagnosticRunner as NetworkChecker
 from core.models import CheckReport, Outcome, ProbeOptions, StageResult
 
 
