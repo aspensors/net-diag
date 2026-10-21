@@ -71,7 +71,7 @@ class NetDiagApp(ctk.CTk):
             return
         try:
             values = [x.strip() for x in Path(path).read_text(encoding="utf-8").splitlines() if x.strip() and not x.lstrip().startswith("#")]
-        except OSError as exc:
+        except (OSError, UnicodeError) as exc:
             messagebox.showerror("net-diag", f"Не удалось прочитать файл:\n{exc}")
             return
         self.domain.delete(0, "end")
