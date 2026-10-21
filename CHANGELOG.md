@@ -16,3 +16,10 @@
 - Remove generated .pyc caches from version control; they remain recoverable from Git history.
 
 Historical verdict labels remain unchanged for JSON compatibility. No release tag has been created; real Arch and GUI integration testing is still needed.
+# Unreleased fixes
+
+- Render external CLI text literally, preventing Rich markup errors and terminal control injection.
+- Validate DoH response shapes, DNS status, address record types and families; provider failures remain isolated.
+- Reject malformed DNS hostnames before starting diagnostics, with length checked after IDNA conversion.
+- Show a GUI error for non-UTF-8 domain files instead of raising an unhandled callback exception.
+
