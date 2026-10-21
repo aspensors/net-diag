@@ -18,7 +18,7 @@ ProgressCallback = Callable[[StageResult], None]
 
 
 class NetworkChecker:
-    """Runs a complete diagnostic sequence for one DNS hostname."""
+    """Low-level probe engine; use DiagnosticRunner for a process-enforced deadline."""
 
     DOH_ENDPOINTS = {
         "cloudflare": "https://cloudflare-dns.com/dns-query",
@@ -28,12 +28,15 @@ class NetworkChecker:
     def __init__(self, options: ProbeOptions | None = None) -> None:
         self.options = options or ProbeOptions()
 
-    def check(self, domain: str, on_progress: ProgressCallback | None = None) -> CheckReport:
+    def check(self, domain: str, on_progress: ProgressCallback | None = None,
+              on_snapshot: Callable[[CheckReport], None] | None = None) -> CheckReport:
         domain = self._normalise_domain(domain)
         report = CheckReport(domain=domain)
 
         def emit(result: StageResult) -> None:
             report.stages.append(result)
+            if on_snapshot:
+                on_snapshot(report)
             if on_progress:
                 on_progress(result)
 

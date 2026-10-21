@@ -10,7 +10,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
-from core.checker import NetworkChecker
+from core.runner import DiagnosticRunner as NetworkChecker
 from core.models import CheckReport, Outcome, ProbeOptions, StageResult
 
 
@@ -19,6 +19,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("domains", nargs="*", help="Один или несколько доменов")
     parser.add_argument("--file", type=Path, help="Файл: по одному домену в строке (# — комментарий)")
     parser.add_argument("--timeout", type=float, default=7.0, help="Таймаут каждой сетевой пробы, секунд")
+    parser.add_argument("--deadline", type=float, default=30.0,
+                        help="Общий лимит на домен, включая DNS (по умолчанию 30 секунд)")
     parser.add_argument("--port-80", action="store_true", help="Дополнительно проверить TCP/80")
     parser.add_argument("--json", type=Path, metavar="PATH", help="Сохранить JSON-отчёт")
     parser.add_argument("--gui", action="store_true", help="Открыть графический интерфейс")
@@ -46,11 +48,12 @@ def run_cli(args: argparse.Namespace) -> int:
     if not domains:
         console.print("[yellow]Укажите домен или --file. Для графического режима используйте --gui.[/]")
         return 2
-    if not math.isfinite(args.timeout) or args.timeout <= 0:
-        console.print("[red]Таймаут должен быть конечным числом больше нуля.[/]")
+    if any(not math.isfinite(value) or value <= 0 for value in (args.timeout, args.deadline)):
+        console.print("[red]Таймаут и дедлайн должны быть конечными числами больше нуля.[/]")
         return 2
 
-    checker = NetworkChecker(ProbeOptions(timeout_seconds=args.timeout, test_port_80=args.port_80))
+    checker = NetworkChecker(ProbeOptions(timeout_seconds=args.timeout, test_port_80=args.port_80,
+                                         deadline_seconds=args.deadline))
     reports: list[CheckReport] = []
     failures = 0
     for domain in domains:
@@ -58,6 +61,8 @@ def run_cli(args: argparse.Namespace) -> int:
         try:
             report = checker.check(domain, on_progress=lambda stage: _print_stage(console, stage))
             reports.append(report)
+            if report.timed_out:
+                failures += 1
             _print_report(console, report)
         except ValueError as exc:
             failures += 1
