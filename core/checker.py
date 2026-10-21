@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 import socket
 import ssl
 import time
@@ -160,13 +161,33 @@ class NetworkChecker:
                                       headers={"Accept": "application/dns-json"})
                 response.raise_for_status()
                 payload = response.json()
-                for answer in payload.get("Answer", []):
-                    value = answer.get("data", "")
+                if not isinstance(payload, dict):
+                    raise ValueError("DoH response must be a JSON object")
+                status = payload.get("Status", 0)
+                if type(status) is not int or status != 0:
+                    raise ValueError("DoH resolver returned an invalid or unsuccessful DNS status")
+                answers = payload.get("Answer", [])
+                if not isinstance(answers, list):
+                    raise ValueError("DoH Answer must be an array")
+                for answer in answers:
+                    if not isinstance(answer, dict):
+                        raise ValueError("DoH answer must be an object")
+                    expected = 1 if record_type == "A" else 28
+                    kind = answer.get("type", expected)
+                    if type(kind) is not int:
+                        raise ValueError("DoH answer type must be an integer")
+                    if kind != expected:
+                        continue  # e.g. CNAME; not an address for this query
+                    value = answer.get("data")
+                    if not isinstance(value, str):
+                        raise ValueError("DoH address must be a string")
                     try:
-                        ipaddress.ip_address(value)
-                        records.append(value)
-                    except ValueError:
-                        continue
+                        address = ipaddress.ip_address(value)
+                    except ValueError as exc:
+                        raise ValueError("DoH answer contains an invalid address") from exc
+                    if address.version != (4 if record_type == "A" else 6):
+                        raise ValueError("DoH address family does not match the query")
+                    records.append(str(address))
         return self._unique(records)
 
     def _tcp_attempt(self, address: str, port: int) -> TcpAttempt:
@@ -206,12 +227,20 @@ class NetworkChecker:
     @staticmethod
     def _normalise_domain(value: str) -> str:
         value = value.strip()
+        if any(not char.isprintable() or char.isspace() for char in value):
+            raise ValueError("Домен или URL содержит пробелы или управляющие символы.")
         if "://" in value:
             value = urlparse(value).hostname or ""
-        value = value.rstrip(".").lower()
-        if not value or len(value) > 253 or "/" in value or " " in value:
+        value = value.removesuffix(".").lower()
+        try:
+            value = value.encode("idna").decode("ascii")
+        except UnicodeError as exc:
+            raise ValueError("Введите корректное доменное имя.") from exc
+        if not value or len(value) > 253 or any(
+                re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", label) is None
+                for label in value.split(".")):
             raise ValueError("Введите корректное доменное имя, без пути и пробелов.")
-        return value.encode("idna").decode("ascii")
+        return value
 
     @staticmethod
     def _unique(values: object) -> list[str]:
